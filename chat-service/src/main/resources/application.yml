@@ -1,0 +1,19 @@
+server:
+    port: 8082
+spring:
+    datasource:
+        url: ${SPRING_DATASOURCE_URL}
+        username: postgres
+        password: postgres
+    jpa:
+        hibernate:
+            ddl-auto: update
+        properties:
+            hibernate:
+                dialect: org.hibernate.dialect.PostgreSQLDialect
+jwt:
+  secret: ${JWT_SECRET}
+
+user:
+    service:
+        url: ${USER_SERVICE_URL}

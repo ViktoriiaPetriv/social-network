@@ -1,0 +1,101 @@
+services:
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_SCOPE=openid,email,profile
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_REDIRECT_URI=http://localhost:8080/login/oauth2/code/google
+      - JWT_SECRET=${JWT_SECRET}
+      - USER_SERVICE_URL=http://user-service:8081
+    depends_on:
+      - user-service
+    networks:
+      - sso-network
+
+  chat-db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: chatdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - chat-db-data:/var/lib/postgresql/data
+    networks:
+      - sso-network
+
+  chat-service:
+    build:
+      context: ./chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://chat-db:5432/chatdb
+      - JWT_SECRET=${JWT_SECRET}
+      - USER_SERVICE_URL=http://user-service:8081
+    depends_on:
+      - chat-db
+    networks:
+      - sso-network
+
+  frontend:
+    image: frontend-app
+    build:
+      context: ./jwt-auth-app
+      dockerfile: Dockerfile
+    ports:
+      - "4200:4200"
+    networks:
+      - sso-network
+    volumes:
+      - ./jwt-auth-app:/app
+      - frontend-app:/app/node_modules
+
+
+  user-db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - sso-network
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://user-db:5432/userdb
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - user-db
+    networks:
+      - sso-network
+
+
+volumes:
+  chat-db-data:
+  user-db-data:
+  frontend-app:
+
+networks:
+  sso-network:
+    driver: bridge
